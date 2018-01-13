@@ -28,7 +28,8 @@ class Simulator_stuff:
 
 class Simulator_socket:
 
-    AF_UNIX = socket.AF_UNIX
+    #ORIGINAL AF_UNIX = socket.AF_UNIX
+    AF_INET = socket.AF_INET
     SOCK_DGRAM = socket.SOCK_DGRAM
     SOCK_STREAM = socket.SOCK_STREAM
 
@@ -64,84 +65,100 @@ class Simulator_socket:
     #    self.max_packet_size = size
 
     def send(self, msg):
-        self.lg.info("{} - [{}] => {}".format(self.sock.getsockname(), \
+        self.lg.info("{}:{} - [{}] => {}:{}".format(self.sock.getsockname()[0], self.sock.getsockname()[1], \
                                           msg, \
-                                          self.sock.getpeername()))
+                                          self.sock.getpeername()[0], self.sock.getpeername()[1]))
         return self.sock.send(msg)
 
     def recv(self, msg_length):
         msg = self.sock.recv(msg_length)
         while len(msg) < msg_length:
             msg += self.sock.recv(msg_length - len(msg))
-        self.lg.info("{} <= [{}] - {}".format(self.sock.getsockname(), \
+        self.lg.info("{}:{} <= [{}] - {}:{}".format(self.sock.getsockname()[0], self.sock.getsockname()[1], \
                                               msg, \
-                                              self.sock.getpeername()))
+                                              self.sock.getpeername()[0], self.sock.getpeername()[1]))
         return msg
 
     def sendall(self, msg):
-        self.lg.info("{} - [{}] => {}".format(self.sock.getsockname(), \
-                                              msg, \
-                                              self.sock.getpeername()))
+        self.lg.info("{}:{} - [{}] => {}:{}".format(self.sock.getsockname()[0], self.sock.getsockname()[1], \
+                                              msg,
+                                              self.sock.getpeername()[0], self.sock.getpeername()[1]))
         return self.sock.sendall(msg)
         
     def sendto(self, msg, address):
-        self.lg.info("{} - [{}] -> {}".format(self.sock.getsockname(), \
-                                              msg, \
-                                              address))
+        self.lg.info("{}:{} - [{}] -> {}:{}".format(self.sock.getsockname()[0], self.sock.getsockname()[1], \
+                                              msg,
+                                              address[0], address[1]))
         try:
-            return self.sock.sendto(msg, socket.MSG_DONTWAIT, address + "_udp")
+            #ORIGINAL return self.sock.sendto(msg, socket.MSG_DONTWAIT, address + "_udp")
+            return self.sock.sendto(msg, socket.MSG_DONTWAIT, address)
+            #COMENTARIO: address tiene que ser la tupla (IP, PUERTO)
         except ConnectionRefusedError:
-            self.lg.error("simulator_stuff.sendto: the message {} has not been delivered because the destination {} left the team".format(msg, address))
+            self.lg.error("simulator_stuff.sendto: the message {} has not been delivered because the destination {}:{} left the team".format(msg, address[0], address[1]))
             raise
         except KeyboardInterrupt:
-            self.lg.warning("simulator_stuff.sendto: send_packet {} to {}".format(msg, address))
+            self.lg.warning("simulator_stuff.sendto: send_packet {} to {}:{}".format(msg, address[0], address[1]))
             raise
         except FileNotFoundError:
-            self.lg.error("simulator_stuff.sendto: {}".format(address + "_udp"))
+            self.lg.error("simulator_stuff.sendto: {}:{} (UDP)".format(address[0], address[1]))
             raise
         except BlockingIOError:
             raise
 
     def recvfrom(self, max_msg_length):
         msg, sender = self.sock.recvfrom(max_msg_length)
-        sender = sender.replace("_tcp", "").replace("_udp", "")
-        self.lg.info("{} <- [{}] - {}".format(self.sock.getsockname(), \
-                                              msg, \
-                                              sender))
+        #ORIGINAL sender = sender.replace("_tcp", "").replace("_udp", "")
+        #COMENTARIO: sender tiene que ser la tupla (IP, PUERTO)
+        self.lg.info("{}:{} <- [{}] - {}:{}".format(self.sock.getsockname()[0], self.sock.getsockname()[1], \
+                                              msg,
+                                              sender[0], sender[1]))
         return (msg, sender)
 
     def connect(self, address):
-        self.lg.info("simulator_stuff.connect({}): {}".format(address, self.sock))
-        return self.sock.connect(address + "_tcp")
+        self.lg.info("simulator_stuff.connect({}:{}): {}:{}".format(address[0], address[1], self.sock[0], self.sock[1]))
+        #ORIGINAL return self.sock.connect(address + "_tcp")
+        #COMENTARIO: address tiene que ser la tupla (IP, PUERTO)
+        return self.sock.connect(address)
 
     def accept(self):
-        self.lg.info("simulator_stuff.accept(): {}".format(self.sock))
+        self.lg.info("simulator_stuff.accept(): {}:{}".format(self.sock[0],self.sock[1]))
         peer_serve_socket, peer = self.sock.accept()
-        return (peer_serve_socket, peer.replace("_tcp", "").replace("udp", ""))
+        #ORIGINAL return (peer_serve_socket, peer.replace("_tcp", "").replace("udp", ""))
+        #COMENTARIO: peer tiene que ser la tupla (IP, PUERTO)
+        return (peer_serve_socket, peer)
 
     def bind(self, address):
-        self.lg.info("simulator_stuff.bind({}): {}".format(address, self.sock))
+        self.lg.info("simulator_stuff.bind({}:{}): {}:{}".format(address[0], address[1], self.sock[0], self.sock[1]))
         if self.type == self.SOCK_STREAM:
             try:
-                return self.sock.bind(address + "_tcp")
+                #ORIGINAL return self.sock.bind(address + "_tcp")
+                #COMENTARIO: address tiene que ser la tupla (IP, PUERTO)
+                return self.sock.bind(address)
             except:
-                self.lg.error("{}: when binding address \"{}\"".format(sys.exc_info()[0], address + "_tcp"))
+                #ORIGINAL __________________
+                self.lg.error("{}: when binding address \"{}:{} (TCP)\"".format(sys.exc_info()[0], address[0], address[1]))
                 raise
         else:
             try:
-                return self.sock.bind(address + "_udp")
+                #ORIGINAL return self.sock.bind(address + "_udp")
+                #COMENTARIO: address tiene que ser la tupla (IP, PUERTO)
+                return self.sock.bind(address)
             except:
-                self.lg.error("{}: when binding address \"{}\"".format(sys.exc_info()[0], address + "_udp"))
+                #ORIGINAL ___________________
+                self.lg.error("{}: when binding address \"{}:{} (UDP)\"".format(sys.exc_info()[0], address[0], address[1]))
                 raise
        
     def listen(self, n):
-        self.lg.info("simulator_stuff.listen({}): {}".format(n, self.sock))
+        #ORIGINAL self.lg.info("simulator_stuff.listen({}): {}".format(n, self.sock))
+        self.lg.info("simulator_stuff.listen({}): {}:{}".format(n, self.sock[0],self.sock[1]))
         return self.sock.listen(n)
 
     def close(self):
-        self.lg.info("simulator_stuff.close(): {}".format(self.sock))
+        #ORIGINAL self.lg.info("simulator_stuff.close(): {}".format(self.sock))
+        self.lg.info("simulator_stuff.close(): {}:{}".format(self.sock[0],self.sock[1]))
         return self.sock.close() # Should delete files
 
     def settimeout(self, value):
-        self.lg.info("simulator_stuff.settimeout({}): {}".format(value, self.sock))
+        #ORIGINAL self.lg.info("simulator_stuff.settimeout({}): {}".format(value, self.sock))
+        self.lg.info("simulator_stuff.settimeout({}): {}:{}".format(value,self.sock[0],self.sock[1]))
         return self.sock.settimeout(value)
