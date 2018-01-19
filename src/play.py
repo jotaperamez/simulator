@@ -253,22 +253,22 @@ class Play():
                         self.update_net(None, (m[3], m[4]), "OUT")
 
             if m[0] == "T":
-                #try:
-                self.update_team(m[1], m[2], m[3])
-                #except:
-                    # For visualization in real time (line is not fully written)
-                #    self.lg.info("simulator: ", "IndexError:", m, line)
-                #    pass
+                try:
+                    self.update_team(m[1], m[2], m[3])
+                except:
+                    #For visualization in real time (line is not fully written)
+                    self.lg.info("simulator: ", "IndexError:", m, line)
+                    pass
 
             if m[0] == "B":
-                # try:
-                self.update_buffer(m[1], m[2], m[3])
-                buffer_shot = None
-                # except Exception as inst:
-                #    # For visualization in real time (line is not fully written)
-                #    self.lg.info("simulator: ", "IndexError:", m, line)
-                #    self.lg.info("simulator: ", inst.args)
-                #    pass
+                try:
+                    self.update_buffer(m[1], m[2], m[3])
+                    buffer_shot = None
+                except Exception as inst:
+                    #For visualization in real time (line is not fully written)
+                    self.lg.info("simulator: ", "IndexError:", m, line)
+                    self.lg.info("simulator: ", inst.args)
+                    pass
 
             if m[0] == "CLR":
                 self.update_clrs(m[1], float(m[2]))

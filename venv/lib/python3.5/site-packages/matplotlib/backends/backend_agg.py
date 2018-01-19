@@ -26,11 +26,12 @@ import six
 
 import threading
 import numpy as np
+from collections import OrderedDict
 from math import radians, cos, sin
-from matplotlib import verbose, rcParams
-from matplotlib.backend_bases import (RendererBase, FigureManagerBase,
-                                      FigureCanvasBase)
-from matplotlib.cbook import is_string_like, maxdict, restrict_dict
+from matplotlib import verbose, rcParams, __version__
+from matplotlib.backend_bases import (
+    _Backend, FigureCanvasBase, FigureManagerBase, RendererBase, cursors)
+from matplotlib.cbook import maxdict
 from matplotlib.figure import Figure
 from matplotlib.font_manager import findfont, get_font
 from matplotlib.ft2font import (LOAD_FORCE_AUTOHINT, LOAD_NO_HINTING,
@@ -78,30 +79,23 @@ class RendererAgg(RendererBase):
     # FigureCanvas acquire a lock on the fontd at the start of the
     # draw, and release it when it is done.  This allows multiple
     # renderers to share the cached fonts, but only one figure can
-    # draw at at time and so the font cache is used by only one
+    # draw at time and so the font cache is used by only one
     # renderer at a time
 
     lock = threading.RLock()
     def __init__(self, width, height, dpi):
-        if __debug__: verbose.report('RendererAgg.__init__', 'debug-annoying')
         RendererBase.__init__(self)
 
         self.dpi = dpi
         self.width = width
         self.height = height
-        if __debug__: verbose.report('RendererAgg.__init__ width=%s, height=%s'%(width, height), 'debug-annoying')
         self._renderer = _RendererAgg(int(width), int(height), dpi, debug=False)
         self._filter_renderers = []
-
-        if __debug__: verbose.report('RendererAgg.__init__ _RendererAgg done',
-                                     'debug-annoying')
 
         self._update_methods()
         self.mathtext_parser = MathTextParser('Agg')
 
         self.bbox = Bbox.from_bounds(0, 0, self.width, self.height)
-        if __debug__: verbose.report('RendererAgg.__init__ done',
-                                     'debug-annoying')
 
     def __getstate__(self):
         # We only want to preserve the init keywords of the Renderer.
@@ -146,31 +140,37 @@ class RendererAgg(RendererBase):
         """
         nmax = rcParams['agg.path.chunksize'] # here at least for testing
         npts = path.vertices.shape[0]
+
         if (nmax > 100 and npts > nmax and path.should_simplify and
                 rgbFace is None and gc.get_hatch() is None):
-            nch = np.ceil(npts/float(nmax))
-            chsize = int(np.ceil(npts/nch))
+            nch = np.ceil(npts / float(nmax))
+            chsize = int(np.ceil(npts / nch))
             i0 = np.arange(0, npts, chsize)
             i1 = np.zeros_like(i0)
             i1[:-1] = i0[1:] - 1
             i1[-1] = npts
             for ii0, ii1 in zip(i0, i1):
-                v = path.vertices[ii0:ii1,:]
+                v = path.vertices[ii0:ii1, :]
                 c = path.codes
                 if c is not None:
                     c = c[ii0:ii1]
-                    c[0] = Path.MOVETO # move to end of last chunk
+                    c[0] = Path.MOVETO  # move to end of last chunk
                 p = Path(v, c)
-                self._renderer.draw_path(gc, p, transform, rgbFace)
+                try:
+                    self._renderer.draw_path(gc, p, transform, rgbFace)
+                except OverflowError:
+                    raise OverflowError("Exceeded cell block limit (set 'agg.path.chunksize' rcparam)")
         else:
-            self._renderer.draw_path(gc, path, transform, rgbFace)
+            try:
+                self._renderer.draw_path(gc, path, transform, rgbFace)
+            except OverflowError:
+                raise OverflowError("Exceeded cell block limit (set 'agg.path.chunksize' rcparam)")
+
 
     def draw_mathtext(self, gc, x, y, s, prop, angle):
         """
         Draw the math text using matplotlib.mathtext
         """
-        if __debug__: verbose.report('RendererAgg.draw_mathtext',
-                                     'debug-annoying')
         ox, oy, width, height, descent, font_image, used_characters = \
             self.mathtext_parser.parse(s, self.dpi, prop)
 
@@ -184,15 +184,14 @@ class RendererAgg(RendererBase):
         """
         Render the text
         """
-        if __debug__: verbose.report('RendererAgg.draw_text', 'debug-annoying')
-
         if ismath:
             return self.draw_mathtext(gc, x, y, s, prop, angle)
 
         flags = get_hinting_flag()
         font = self._get_agg_font(prop)
 
-        if font is None: return None
+        if font is None:
+            return None
         if len(s) == 1 and ord(s) > 127:
             font.load_char(ord(s), flags=flags)
         else:
@@ -214,20 +213,17 @@ class RendererAgg(RendererBase):
 
     def get_text_width_height_descent(self, s, prop, ismath):
         """
-        get the width and height in display coords of the string s
-        with FontPropertry prop
-
-        # passing rgb is a little hack to make caching in the
-        # texmanager more efficient.  It is not meant to be used
-        # outside the backend
+        Get the width, height, and descent (offset from the bottom
+        to the baseline), in display coords, of the string *s* with
+        :class:`~matplotlib.font_manager.FontProperties` *prop*
         """
         if rcParams['text.usetex']:
             # todo: handle props
             size = prop.get_size_in_points()
             texmanager = self.get_texmanager()
             fontsize = prop.get_size_in_points()
-            w, h, d = texmanager.get_text_width_height_descent(s, fontsize,
-                                                               renderer=self)
+            w, h, d = texmanager.get_text_width_height_descent(
+                s, fontsize, renderer=self)
             return w, h, d
 
         if ismath:
@@ -270,9 +266,6 @@ class RendererAgg(RendererBase):
         """
         Get the font for text instance t, cacheing for efficiency
         """
-        if __debug__: verbose.report('RendererAgg._get_agg_font',
-                                     'debug-annoying')
-
         fname = findfont(prop)
         font = get_font(
             fname,
@@ -289,23 +282,15 @@ class RendererAgg(RendererBase):
         convert point measures to pixes using dpi and the pixels per
         inch of the display
         """
-        if __debug__: verbose.report('RendererAgg.points_to_pixels',
-                                     'debug-annoying')
         return points*self.dpi/72.0
 
     def tostring_rgb(self):
-        if __debug__: verbose.report('RendererAgg.tostring_rgb',
-                                     'debug-annoying')
         return self._renderer.tostring_rgb()
 
     def tostring_argb(self):
-        if __debug__: verbose.report('RendererAgg.tostring_argb',
-                                     'debug-annoying')
         return self._renderer.tostring_argb()
 
     def buffer_rgba(self):
-        if __debug__: verbose.report('RendererAgg.buffer_rgba',
-                                     'debug-annoying')
         return self._renderer.buffer_rgba()
 
     def clear(self):
@@ -410,36 +395,16 @@ class RendererAgg(RendererBase):
                 gc, l + ox, height - b - h + oy, img)
 
 
-def new_figure_manager(num, *args, **kwargs):
-    """
-    Create a new figure manager instance
-    """
-    if __debug__: verbose.report('backend_agg.new_figure_manager',
-                                 'debug-annoying')
-
-
-    FigureClass = kwargs.pop('FigureClass', Figure)
-    thisFig = FigureClass(*args, **kwargs)
-    return new_figure_manager_given_figure(num, thisFig)
-
-
-def new_figure_manager_given_figure(num, figure):
-    """
-    Create a new figure manager instance for the given figure.
-    """
-    canvas = FigureCanvasAgg(figure)
-    manager = FigureManagerBase(canvas, num)
-    return manager
-
-
 class FigureCanvasAgg(FigureCanvasBase):
     """
     The canvas the figure renders into.  Calls the draw and print fig
     methods, creates the renderers, etc...
 
-    Public attribute
+    Attributes
+    ----------
+    figure : `matplotlib.figure.Figure`
+        A high-level Figure instance
 
-      figure - A Figure instance
     """
 
     def copy_from_bbox(self, bbox):
@@ -454,15 +419,18 @@ class FigureCanvasAgg(FigureCanvasBase):
         """
         Draw the figure using the renderer
         """
-        if __debug__: verbose.report('FigureCanvasAgg.draw', 'debug-annoying')
-
         self.renderer = self.get_renderer(cleared=True)
         # acquire a lock on the shared font cache
         RendererAgg.lock.acquire()
 
+        toolbar = self.toolbar
         try:
+            if toolbar:
+                toolbar.set_cursor(cursors.WAIT)
             self.figure.draw(self.renderer)
         finally:
+            if toolbar:
+                toolbar.set_cursor(toolbar._lastCursor)
             RendererAgg.lock.release()
 
     def get_renderer(self, cleared=False):
@@ -489,8 +457,6 @@ class FigureCanvasAgg(FigureCanvasBase):
         -------
         bytes
         '''
-        if __debug__: verbose.report('FigureCanvasAgg.tostring_rgb',
-                                     'debug-annoying')
         return self.renderer.tostring_rgb()
 
     def tostring_argb(self):
@@ -504,8 +470,6 @@ class FigureCanvasAgg(FigureCanvasBase):
         bytes
 
         '''
-        if __debug__: verbose.report('FigureCanvasAgg.tostring_argb',
-                                     'debug-annoying')
         return self.renderer.tostring_argb()
 
     def buffer_rgba(self):
@@ -518,8 +482,6 @@ class FigureCanvasAgg(FigureCanvasBase):
         -------
         bytes
         '''
-        if __debug__: verbose.report('FigureCanvasAgg.buffer_rgba',
-                                     'debug-annoying')
         return self.renderer.buffer_rgba()
 
     def print_raw(self, filename_or_obj, *args, **kwargs):
@@ -527,7 +489,7 @@ class FigureCanvasAgg(FigureCanvasBase):
         renderer = self.get_renderer()
         original_dpi = renderer.dpi
         renderer.dpi = self.figure.dpi
-        if is_string_like(filename_or_obj):
+        if isinstance(filename_or_obj, six.string_types):
             fileobj = open(filename_or_obj, 'wb')
             close = True
         else:
@@ -546,14 +508,22 @@ class FigureCanvasAgg(FigureCanvasBase):
         renderer = self.get_renderer()
         original_dpi = renderer.dpi
         renderer.dpi = self.figure.dpi
-        if is_string_like(filename_or_obj):
+        if isinstance(filename_or_obj, six.string_types):
             filename_or_obj = open(filename_or_obj, 'wb')
             close = True
         else:
             close = False
 
+        version_str = 'matplotlib version ' + __version__ + \
+            ', http://matplotlib.org/'
+        metadata = OrderedDict({'Software': version_str})
+        user_metadata = kwargs.pop("metadata", None)
+        if user_metadata is not None:
+            metadata.update(user_metadata)
+
         try:
-            _png.write_png(renderer._renderer, filename_or_obj, self.figure.dpi)
+            _png.write_png(renderer._renderer, filename_or_obj,
+                           self.figure.dpi, metadata=metadata)
         finally:
             if close:
                 filename_or_obj.close()
@@ -575,19 +545,22 @@ class FigureCanvasAgg(FigureCanvasBase):
         # add JPEG support
         def print_jpg(self, filename_or_obj, *args, **kwargs):
             """
-            Supported kwargs:
-
-            *quality*: The image quality, on a scale from 1 (worst) to
+            Other Parameters
+            ----------------
+            quality : int
+                The image quality, on a scale from 1 (worst) to
                 95 (best). The default is 95, if not given in the
                 matplotlibrc file in the savefig.jpeg_quality parameter.
                 Values above 95 should be avoided; 100 completely
                 disables the JPEG quantization stage.
 
-            *optimize*: If present, indicates that the encoder should
+            optimize : bool
+                If present, indicates that the encoder should
                 make an extra pass over the image in order to select
                 optimal encoder settings.
 
-            *progressive*: If present, indicates that this image
+            progressive : bool
+                If present, indicates that this image
                 should be stored as a progressive JPEG file.
             """
             buf, size = self.print_to_buffer()
@@ -596,16 +569,17 @@ class FigureCanvasAgg(FigureCanvasBase):
             # The image is "pasted" onto a white background image to safely
             # handle any transparency
             image = Image.frombuffer('RGBA', size, buf, 'raw', 'RGBA', 0, 1)
-            color = mcolors.colorConverter.to_rgb(
-                rcParams.get('savefig.facecolor', 'white'))
-            color = tuple([int(x * 255.0) for x in color])
+            rgba = mcolors.to_rgba(rcParams['savefig.facecolor'])
+            color = tuple([int(x * 255.0) for x in rgba[:3]])
             background = Image.new('RGB', size, color)
             background.paste(image, image)
-            options = restrict_dict(kwargs, ['quality', 'optimize',
-                                             'progressive'])
-
-            if 'quality' not in options:
-                options['quality'] = rcParams['savefig.jpeg_quality']
+            options = {k: kwargs[k]
+                       for k in ['quality', 'optimize', 'progressive', 'dpi']
+                       if k in kwargs}
+            options.setdefault('quality', rcParams['savefig.jpeg_quality'])
+            if 'dpi' in options:
+                # Set the same dpi in both x and y directions
+                options['dpi'] = (options['dpi'], options['dpi'])
 
             return background.save(filename_or_obj, format='jpeg', **options)
         print_jpeg = print_jpg
@@ -622,4 +596,7 @@ class FigureCanvasAgg(FigureCanvasBase):
         print_tiff = print_tif
 
 
-FigureCanvas = FigureCanvasAgg
+@_Backend.export
+class _BackendAgg(_Backend):
+    FigureCanvas = FigureCanvasAgg
+    FigureManager = FigureManagerBase

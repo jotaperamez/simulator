@@ -49,7 +49,7 @@ class TextToPath(object):
     def _get_adobe_standard_encoding(self):
         enc_name = dviread.find_tex_file('8a.enc')
         enc = dviread.Encoding(enc_name)
-        return dict([(c, i) for i, c in enumerate(enc.encoding)])
+        return {c: i for i, c in enumerate(enc.encoding)}
 
     def _get_font(self, prop):
         """
@@ -314,10 +314,8 @@ class TextToPath(object):
         else:
             dvifile = texmanager.make_dvi(s, self.FONT_SCALE)
             dvi = dviread.Dvi(dvifile, self.DPI)
-        try:
+        with dvi:
             page = next(iter(dvi))
-        finally:
-            dvi.close()
 
         if glyph_map is None:
             glyph_map = OrderedDict()
@@ -337,6 +335,12 @@ class TextToPath(object):
             font_bunch = self.tex_font_map[dvifont.texname]
 
             if font_and_encoding is None:
+                if font_bunch.filename is None:
+                    raise ValueError(
+                        ("No usable font file found for %s (%s). "
+                         "The font may lack a Type-1 version.")
+                        % (font_bunch.psname, dvifont.texname))
+
                 font = get_font(font_bunch.filename)
 
                 for charmap_name, charmap_code in [("ADOBE_CUSTOM",
@@ -356,10 +360,10 @@ class TextToPath(object):
 
                 if charmap_name == "ADOBE_STANDARD" and font_bunch.encoding:
                     enc0 = dviread.Encoding(font_bunch.encoding)
-                    enc = dict([(i, self._adobe_standard_encoding.get(c, None))
-                                for i, c in enumerate(enc0.encoding)])
+                    enc = {i: self._adobe_standard_encoding.get(c, None)
+                           for i, c in enumerate(enc0.encoding)}
                 else:
-                    enc = dict()
+                    enc = {}
                 self._ps_fontd[dvifont.texname] = font, enc
 
             else:

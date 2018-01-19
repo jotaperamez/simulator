@@ -67,26 +67,23 @@ def _get_packed_offsets(wd_list, total, sep, mode="fixed"):
     *mode* : packing mode. 'fixed', 'expand', or 'equal'.
     """
 
-    w_list, d_list = list(zip(*wd_list))
+    w_list, d_list = zip(*wd_list)
     # d_list is currently not used.
 
     if mode == "fixed":
-        offsets_ = np.add.accumulate([0] + [w + sep for w in w_list])
+        offsets_ = np.cumsum([0] + [w + sep for w in w_list])
         offsets = offsets_[:-1]
-
         if total is None:
             total = offsets_[-1] - sep
-
         return total, offsets
 
     elif mode == "expand":
         if len(w_list) > 1:
             sep = (total - sum(w_list)) / (len(w_list) - 1.)
         else:
-            sep = 0.
-        offsets_ = np.add.accumulate([0] + [w + sep for w in w_list])
+            sep = 0
+        offsets_ = np.cumsum([0] + [w + sep for w in w_list])
         offsets = offsets_[:-1]
-
         return total, offsets
 
     elif mode == "equal":
@@ -94,10 +91,8 @@ def _get_packed_offsets(wd_list, total, sep, mode="fixed"):
         if total is None:
             total = (maxh + sep) * len(w_list)
         else:
-            sep = float(total) / (len(w_list)) - maxh
-
-        offsets = np.array([(maxh + sep) * i for i in range(len(w_list))])
-
+            sep = total / len(w_list) - maxh
+        offsets = (maxh + sep) * np.arange(len(w_list))
         return total, offsets
 
     else:
@@ -119,11 +114,11 @@ def _get_aligned_offsets(hd_list, height, align="baseline"):
     """
 
     if height is None:
-        height = max([h for h, d in hd_list])
+        height = max(h for h, d in hd_list)
 
     if align == "baseline":
-        height_descent = max([h - d for h, d in hd_list])
-        descent = max([d for h, d in hd_list])
+        height_descent = max(h - d for h, d in hd_list)
+        descent = max(d for h, d in hd_list)
         height = height_descent + descent
         offsets = [0. for h, d in hd_list]
     elif align in ["left", "top"]:
@@ -217,10 +212,9 @@ class OffsetBox(martist.Artist):
 
         accepts extent of the box
         """
-        if six.callable(self._offset):
-            return self._offset(width, height, xdescent, ydescent, renderer)
-        else:
-            return self._offset
+        return (self._offset(width, height, xdescent, ydescent, renderer)
+                if callable(self._offset)
+                else self._offset)
 
     def set_width(self, width):
         """
@@ -465,8 +459,8 @@ class HPacker(PackerBase):
             return 2 * pad, 2 * pad, pad, pad, []
 
         if self.height is None:
-            height_descent = max([h - yd for w, h, xd, yd in whd_list])
-            ydescent = max([yd for w, h, xd, yd in whd_list])
+            height_descent = max(h - yd for w, h, xd, yd in whd_list)
+            ydescent = max(yd for w, h, xd, yd in whd_list)
             height = height_descent + ydescent
         else:
             height = self.height - 2 * pad  # width w/o pad
@@ -987,6 +981,19 @@ class AnchoredOffsetbox(OffsetBox):
     """
     zorder = 5  # zorder of the legend
 
+    # Location codes
+    codes = {'upper right': 1,
+             'upper left': 2,
+             'lower left': 3,
+             'lower right': 4,
+             'right': 5,
+             'center left': 6,
+             'center right': 7,
+             'lower center': 8,
+             'upper center': 9,
+             'center': 10,
+             }
+
     def __init__(self, loc,
                  pad=0.4, borderpad=0.5,
                  child=None, prop=None, frameon=True,
@@ -995,13 +1002,13 @@ class AnchoredOffsetbox(OffsetBox):
                  **kwargs):
         """
         loc is a string or an integer specifying the legend location.
-        The valid  location codes are::
+        The valid location codes are::
 
         'upper right'  : 1,
         'upper left'   : 2,
         'lower left'   : 3,
         'lower right'  : 4,
-        'right'        : 5,
+        'right'        : 5, (same as 'center right', for back-compatibility)
         'center left'  : 6,
         'center right' : 7,
         'lower center' : 8,
@@ -1028,6 +1035,14 @@ class AnchoredOffsetbox(OffsetBox):
 
         self.set_bbox_to_anchor(bbox_to_anchor, bbox_transform)
         self.set_child(child)
+
+        if isinstance(loc, six.string_types):
+            try:
+                loc = self.codes[loc]
+            except KeyError:
+                raise ValueError('Unrecognized location "%s". Valid '
+                                 'locations are\n\t%s\n'
+                                 % (loc, '\n\t'.join(self.codes)))
 
         self.loc = loc
         self.borderpad = borderpad
@@ -1184,7 +1199,7 @@ class AnchoredOffsetbox(OffsetBox):
         """
         assert loc in range(1, 11)  # called only internally
 
-        BEST, UR, UL, LL, LR, R, CL, CR, LC, UC, C = list(xrange(11))
+        BEST, UR, UL, LL, LR, R, CL, CR, LC, UC, C = xrange(11)
 
         anchor_coefs = {UR: "NE",
                         UL: "NW",
@@ -1237,20 +1252,16 @@ class AnchoredText(AnchoredOffsetbox):
 
         if prop is None:
             prop = {}
-        propkeys = list(six.iterkeys(prop))
-        badkwargs = ('ha', 'horizontalalignment', 'va', 'verticalalignment')
-        if set(badkwargs) & set(propkeys):
+        badkwargs = {'ha', 'horizontalalignment', 'va', 'verticalalignment'}
+        if badkwargs & set(prop):
             warnings.warn("Mixing horizontalalignment or verticalalignment "
-                    "with AnchoredText is not supported.")
+                          "with AnchoredText is not supported.")
 
-        self.txt = TextArea(s, textprops=prop,
-                            minimumdescent=False)
+        self.txt = TextArea(s, textprops=prop, minimumdescent=False)
         fp = self.txt._text.get_fontproperties()
-
-        super(AnchoredText, self).__init__(loc, pad=pad, borderpad=borderpad,
-                                           child=self.txt,
-                                           prop=fp,
-                                           **kwargs)
+        super(AnchoredText, self).__init__(
+            loc, pad=pad, borderpad=borderpad, child=self.txt, prop=fp,
+            **kwargs)
 
 
 class OffsetImage(OffsetBox):
@@ -1624,7 +1635,7 @@ class DraggableBase(object):
 
     *artist_picker* is a picker method that will be
      used. *finalize_offset* is called when the mouse is released. In
-     current implementaion of DraggableLegend and DraggableAnnotation,
+     current implementation of DraggableLegend and DraggableAnnotation,
      *update_offset* places the artists simply in display
      coordinates. And *finalize_offset* recalculate their position in
      the normalized axes coordinate and set a relavant attribute.

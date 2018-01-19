@@ -58,13 +58,13 @@ stock_dt_ohlc = np.dtype([
     (str('year'), np.int16),
     (str('month'), np.int8),
     (str('day'), np.int8),
-    (str('d'), np.float),     # mpl datenum
-    (str('open'), np.float),
-    (str('high'), np.float),
-    (str('low'), np.float),
-    (str('close'), np.float),
-    (str('volume'), np.float),
-    (str('aclose'), np.float)])
+    (str('d'), float),     # mpl datenum
+    (str('open'), float),
+    (str('high'), float),
+    (str('low'), float),
+    (str('close'), float),
+    (str('volume'), float),
+    (str('aclose'), float)])
 
 
 stock_dt_ochl = np.dtype(
@@ -72,13 +72,13 @@ stock_dt_ochl = np.dtype(
      (str('year'), np.int16),
      (str('month'), np.int8),
      (str('day'), np.int8),
-     (str('d'), np.float),     # mpl datenum
-     (str('open'), np.float),
-     (str('close'), np.float),
-     (str('high'), np.float),
-     (str('low'), np.float),
-     (str('volume'), np.float),
-     (str('aclose'), np.float)])
+     (str('d'), float),     # mpl datenum
+     (str('open'), float),
+     (str('close'), float),
+     (str('high'), float),
+     (str('low'), float),
+     (str('volume'), float),
+     (str('aclose'), float)])
 
 
 def parse_yahoo_historical_ochl(fh, adjusted=True, asobject=False):
@@ -268,7 +268,7 @@ def _parse_yahoo_historical(fh, adjusted=True, asobject=False,
 
     if not asobject:
         # 2-D sequence; formerly list of tuples, now ndarray
-        ret = np.zeros((len(d), 6), dtype=np.float)
+        ret = np.zeros((len(d), 6), dtype=float)
         ret[:, 0] = d['d']
         if ochl:
             ret[:, 1] = d['open']
@@ -342,12 +342,10 @@ def fetch_historical_yahoo(ticker, date1, date2, cachename=None,
     else:
         g = 'd'
 
-    urlFmt = ('http://ichart.yahoo.com/table.csv?a=%d&b=%d&' +
-              'c=%d&d=%d&e=%d&f=%d&s=%s&y=0&g=%s&ignore=.csv')
+    urlFmt = ('http://real-chart.finance.yahoo.com/table.csv?' +
+              '&s=%s&d=%d&e=%d&f=%d&g=%s&a=%d&b=%d&c=%d&ignore=.csv')
 
-    url = urlFmt % (d1[0], d1[1], d1[2],
-                    d2[0], d2[1], d2[2], ticker, g)
-
+    url = urlFmt % (ticker, d2[0], d2[1], d2[2], g, d1[0], d1[1], d1[2])
     # Cache the finance data if cachename is supplied, or there is a writable
     # cache directory.
     if cachename is None and cachedir is not None:

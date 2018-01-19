@@ -7,7 +7,6 @@ import math
 import os
 import sys
 import warnings
-def fn_name(): return sys._getframe(1).f_code.co_name
 
 import gobject
 import gtk; gdk = gtk.gdk
@@ -24,21 +23,20 @@ import numpy as np
 import matplotlib
 from matplotlib import rcParams
 from matplotlib._pylab_helpers import Gcf
-from matplotlib.backend_bases import RendererBase, GraphicsContextBase, \
-     FigureManagerBase, FigureCanvasBase
-from matplotlib.cbook import is_string_like, restrict_dict, warn_deprecated
+from matplotlib.backend_bases import (
+    _Backend, FigureCanvasBase, FigureManagerBase, GraphicsContextBase,
+    RendererBase)
+from matplotlib.cbook import warn_deprecated
 from matplotlib.figure import Figure
 from matplotlib.mathtext import MathTextParser
 from matplotlib.transforms import Affine2D
 from matplotlib.backends._backend_gdk import pixbuf_get_pixels_array
 
 backend_version = "%d.%d.%d" % gtk.pygtk_version
-_debug = False
 
 # Image formats that this backend supports - for FileChooser and print_figure()
-IMAGE_FORMAT  = ['eps', 'jpg', 'png', 'ps', 'svg'] + ['bmp'] # , 'raw', 'rgb']
-IMAGE_FORMAT.sort()
-IMAGE_FORMAT_DEFAULT  = 'png'
+IMAGE_FORMAT = sorted(['bmp', 'eps', 'jpg', 'png', 'ps', 'svg']) # 'raw', 'rgb'
+IMAGE_FORMAT_DEFAULT = 'png'
 
 
 class RendererGDK(RendererBase):
@@ -134,7 +132,6 @@ class RendererGDK(RendererBase):
                                   int(x), int(y), cols, rows,
                                   gdk.RGB_DITHER_NONE, 0, 0)
 
-
     def draw_text(self, gc, x, y, s, prop, angle, ismath=False, mtext=None):
         x, y = int(x), int(y)
 
@@ -158,31 +155,17 @@ class RendererGDK(RendererBase):
 
             self.gdkDrawable.draw_layout(gc.gdkGC, x, y-h-b, layout)
 
-
     def _draw_mathtext(self, gc, x, y, s, prop, angle):
         ox, oy, width, height, descent, font_image, used_characters = \
             self.mathtext_parser.parse(s, self.dpi, prop)
 
-        if angle==90:
+        if angle == 90:
             width, height = height, width
             x -= width
         y -= height
 
         imw = font_image.get_width()
         imh = font_image.get_height()
-        N = imw * imh
-
-        # a numpixels by num fonts array
-        Xall = np.zeros((N,1), np.uint8)
-
-        image_str = font_image.as_str()
-        Xall[:,0] = np.fromstring(image_str, np.uint8)
-
-        # get the max alpha at each pixel
-        Xs = np.amax(Xall,axis=1)
-
-        # convert it to it's proper shape
-        Xs.shape = imh, imw
 
         pixbuf = gtk.gdk.Pixbuf(gtk.gdk.COLORSPACE_RGB, has_alpha=True,
                                 bits_per_sample=8, width=imw, height=imh)
@@ -190,22 +173,16 @@ class RendererGDK(RendererBase):
         array = pixbuf_get_pixels_array(pixbuf)
 
         rgb = gc.get_rgb()
-        array[:,:,0]=int(rgb[0]*255)
-        array[:,:,1]=int(rgb[1]*255)
-        array[:,:,2]=int(rgb[2]*255)
-        array[:,:,3]=Xs
+        array[:,:,0] = int(rgb[0]*255)
+        array[:,:,1] = int(rgb[1]*255)
+        array[:,:,2] = int(rgb[2]*255)
+        array[:,:,3] = (
+            np.fromstring(font_image.as_str(), np.uint8).reshape((imh, imw)))
 
-        try: # new in 2.2
-            # can use None instead of gc.gdkGC, if don't need clipping
-            self.gdkDrawable.draw_pixbuf (gc.gdkGC, pixbuf, 0, 0,
-                                          int(x), int(y), imw, imh,
-                                          gdk.RGB_DITHER_NONE, 0, 0)
-        except AttributeError:
-            # deprecated in 2.2
-            pixbuf.render_to_drawable(self.gdkDrawable, gc.gdkGC, 0, 0,
-                                  int(x), int(y), imw, imh,
-                                  gdk.RGB_DITHER_NONE, 0, 0)
-
+        # can use None instead of gc.gdkGC, if don't need clipping
+        self.gdkDrawable.draw_pixbuf(gc.gdkGC, pixbuf, 0, 0,
+                                     int(x), int(y), imw, imh,
+                                     gdk.RGB_DITHER_NONE, 0, 0)
 
     def _draw_rotated_text(self, gc, x, y, s, prop, angle):
         """
@@ -259,7 +236,6 @@ class RendererGDK(RendererBase):
         gdrawable.draw_image(ggc, imageVert, 0, 0, x, y, h, w)
         self.rotated[key] = imageVert
 
-
     def _get_pango_layout(self, s, prop):
         """
         Create a pango layout instance for Text 's' with properties 'prop'.
@@ -293,7 +269,6 @@ class RendererGDK(RendererBase):
         self.layoutd[key] = layout, inkRect, logicalRect
         return layout, inkRect, logicalRect
 
-
     def flipy(self):
         return True
 
@@ -314,7 +289,6 @@ class RendererGDK(RendererBase):
 
     def new_gc(self):
         return GraphicsContextGDK(renderer=self)
-
 
     def points_to_pixels(self, points):
         return points/72.0 * self.dpi
@@ -394,11 +368,6 @@ class GraphicsContextGDK(GraphicsContextBase):
         self.gdkGC.foreground = self.rgb_to_gdk_color(self.get_rgb())
 
 
-    def set_graylevel(self, frac):
-        GraphicsContextBase.set_graylevel(self, frac)
-        self.gdkGC.foreground = self.rgb_to_gdk_color(self.get_rgb())
-
-
     def set_joinstyle(self, js):
         GraphicsContextBase.set_joinstyle(self, js)
         self.gdkGC.join_style = self._joind[self._joinstyle]
@@ -411,24 +380,6 @@ class GraphicsContextGDK(GraphicsContextBase):
         else:
             pixels = self.renderer.points_to_pixels(w)
             self.gdkGC.line_width = max(1, int(np.round(pixels)))
-
-
-def new_figure_manager(num, *args, **kwargs):
-    """
-    Create a new figure manager instance
-    """
-    FigureClass = kwargs.pop('FigureClass', Figure)
-    thisFig = FigureClass(*args, **kwargs)
-    return new_figure_manager_given_figure(num, thisFig)
-
-
-def new_figure_manager_given_figure(num, figure):
-    """
-    Create a new figure manager instance for the given figure.
-    """
-    canvas  = FigureCanvasGDK(figure)
-    manager = FigureManagerBase(canvas, num)
-    return manager
 
 
 class FigureCanvasGDK (FigureCanvasBase):
@@ -477,10 +428,15 @@ class FigureCanvasGDK (FigureCanvasBase):
 
         # set the default quality, if we are writing a JPEG.
         # http://www.pygtk.org/docs/pygtk/class-gdkpixbuf.html#method-gdkpixbuf--save
-        options = restrict_dict(kwargs, ['quality'])
-        if format in ['jpg','jpeg']:
-            if 'quality' not in options:
-                options['quality'] = rcParams['savefig.jpeg_quality']
+        options = {k: kwargs[k] for k in ['quality'] if k in kwargs}
+        if format in ['jpg', 'jpeg']:
+            options.setdefault('quality', rcParams['savefig.jpeg_quality'])
             options['quality'] = str(options['quality'])
 
         pixbuf.save(filename, format, options=options)
+
+
+@_Backend.export
+class _BackendGDK(_Backend):
+    FigureCanvas = FigureCanvasGDK
+    FigureManager = FigureManagerBase
