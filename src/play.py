@@ -130,15 +130,15 @@ class Play():
         if node == "M":
             self.lineMonitors.set_xdata(n_round)
             self.lineMonitors.set_ydata(quantity)
-            self.team_ax.draw_artist(self.lineMonitors)
+            #self.team_ax.draw_artist(self.lineMonitors)
         elif node == "P":
             self.lineWIPs.set_xdata(n_round)
             self.lineWIPs.set_ydata(quantity)
-            self.team_ax.draw_artist(self.lineWIPs)
+            #self.team_ax.draw_artist(self.lineWIPs)
         else:
             self.lineMPs.set_xdata(n_round)
             self.lineMPs.set_ydata(quantity)
-            self.team_ax.draw_artist(self.lineMPs)
+            #self.team_ax.draw_artist(self.lineMPs)
 
         self.team_figure.canvas.blit(self.team_ax.bbox)
 
@@ -172,7 +172,7 @@ class Play():
         buffer_out = [pos for pos, char in enumerate(buffer_shot) if char == "L"]
         self.lineOUT.set_xdata([self.buffer_order[node]]*len(buffer_out))
         self.lineOUT.set_ydata(buffer_out)
-        self.buffer_ax.draw_artist(self.lineOUT)
+        #self.buffer_ax.draw_artist(self.lineOUT)
 
         buffer_in = [pos for pos, char in enumerate(buffer_shot) if char == "C"]
         sender_list = senders_shot.split(":")
@@ -209,7 +209,7 @@ class Play():
         if len(self.clrs_per_round) > 0:
             self.lineCLR.set_xdata(n_round)
             self.lineCLR.set_ydata(np.mean(self.clrs_per_round))
-            self.clr_ax.draw_artist(self.lineCLR)
+            #self.clr_ax.draw_artist(self.lineCLR)
             self.clr_figure.canvas.blit(self.clr_ax.bbox)
             self.clrs_per_round = []
 
@@ -253,22 +253,22 @@ class Play():
                         self.update_net(None, (m[3], m[4]), "OUT")
 
             if m[0] == "T":
-                try:
-                    self.update_team(m[1], m[2], m[3])
-                except:
-                    #For visualization in real time (line is not fully written)
-                    self.lg.info("simulator: ", "IndexError:", m, line)
-                    pass
+                #try:
+                self.update_team(m[1], m[2], m[3])
+                #except:
+                    # For visualization in real time (line is not fully written)
+                #    self.lg.info("simulator: ", "IndexError:", m, line)
+                #    pass
 
             if m[0] == "B":
-                try:
-                    self.update_buffer(m[1], m[2], m[3])
-                    buffer_shot = None
-                except Exception as inst:
-                    #For visualization in real time (line is not fully written)
-                    self.lg.info("simulator: ", "IndexError:", m, line)
-                    self.lg.info("simulator: ", inst.args)
-                    pass
+                # try:
+                self.update_buffer(m[1], m[2], m[3])
+                buffer_shot = None
+                # except Exception as inst:
+                #    # For visualization in real time (line is not fully written)
+                #    self.lg.info("simulator: ", "IndexError:", m, line)
+                #    self.lg.info("simulator: ", inst.args)
+                #    pass
 
             if m[0] == "CLR":
                 self.update_clrs(m[1], float(m[2]))
