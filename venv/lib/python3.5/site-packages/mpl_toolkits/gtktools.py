@@ -230,7 +230,6 @@ class SortedStringsScrolledWindow(gtk.ScrolledWindow):
         self.model.clear()
         self.datad = dict()
 
-
     def flat(self, row):
         seq = []
         for i,val in enumerate(row):
@@ -239,9 +238,7 @@ class SortedStringsScrolledWindow(gtk.ScrolledWindow):
         return seq
 
     def __delete_selected(self, *unused): # untested
-
-
-        keyd = dict([(thisiter, key) for key, thisiter in self.iterd.values()])
+        keyd = {thisiter: key for key, thisiter in self.iterd.values()}
         for row in self.get_selected():
             key = tuple(row)
             thisiter = self.iterd[key]
@@ -252,8 +249,6 @@ class SortedStringsScrolledWindow(gtk.ScrolledWindow):
 
         for i, thisiter in enumerate(self.iters):
             self.rownumd[i] = keyd[thisiter]
-
-
 
     def delete_row(self, row):
         key = tuple(row)
@@ -407,18 +402,14 @@ class RecListStore(gtk.ListStore):
         self.combod = dict()
         if len(stringd):
             types.extend([gobject.TYPE_INT]*len(stringd))
-
-            keys = list(six.iterkeys(stringd))
-            keys.sort()
-
+            keys = sorted(stringd)
             valid = set(r.dtype.names)
             for ikey, key in enumerate(keys):
-                assert(key in valid)
+                assert key in valid
                 combostore = gtk.ListStore(gobject.TYPE_STRING)
                 for s in stringd[key]:
                     combostore.append([s])
                 self.combod[key] = combostore, len(self.headers)+ikey
-
 
         gtk.ListStore.__init__(self, *types)
 
@@ -488,8 +479,7 @@ class RecTreeView(gtk.TreeView):
 
         gtk.TreeView.__init__(self, recliststore)
 
-        combostrings = set(recliststore.stringd.keys())
-
+        combostrings = set(recliststore.stringd)
 
         if constant is None:
             constant = []

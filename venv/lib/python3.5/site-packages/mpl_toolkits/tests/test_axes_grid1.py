@@ -3,15 +3,18 @@ from __future__ import (absolute_import, division, print_function,
 
 import six
 
+import matplotlib
 import matplotlib.pyplot as plt
-from matplotlib.testing.decorators import image_comparison, cleanup
+from matplotlib.testing.decorators import image_comparison
 
+from mpl_toolkits.axes_grid1 import host_subplot
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from mpl_toolkits.axes_grid1 import AxesGrid
 from mpl_toolkits.axes_grid1.inset_locator import zoomed_inset_axes, mark_inset
 from mpl_toolkits.axes_grid1.anchored_artists import AnchoredSizeBar
 
 from matplotlib.colors import LogNorm
+from itertools import product
 
 import numpy as np
 
@@ -40,7 +43,7 @@ def test_divider_append_axes():
 
     # now determine nice limits by hand:
     binwidth = 0.25
-    xymax = np.max([np.max(np.fabs(x)), np.max(np.fabs(y))])
+    xymax = max(np.max(np.abs(x)), np.max(np.abs(y)))
     lim = (int(xymax/binwidth) + 1) * binwidth
 
     bins = np.arange(-lim, lim + binwidth, binwidth)
@@ -58,7 +61,36 @@ def test_divider_append_axes():
     axHistright.yaxis.set_ticklabels(())
 
 
-@cleanup
+@image_comparison(baseline_images=['twin_axes_empty_and_removed'],
+                  extensions=["png"], tol=1)
+def test_twin_axes_empty_and_removed():
+    # Purely cosmetic font changes (avoid overlap)
+    matplotlib.rcParams.update({"font.size": 8})
+    matplotlib.rcParams.update({"xtick.labelsize": 8})
+    matplotlib.rcParams.update({"ytick.labelsize": 8})
+    generators = [ "twinx", "twiny", "twin" ]
+    modifiers = [ "", "host invisible", "twin removed", "twin invisible",
+        "twin removed\nhost invisible" ]
+    # Unmodified host subplot at the beginning for reference
+    h = host_subplot(len(modifiers)+1, len(generators), 2)
+    h.text(0.5, 0.5, "host_subplot", horizontalalignment="center",
+        verticalalignment="center")
+    # Host subplots with various modifications (twin*, visibility) applied
+    for i, (mod, gen) in enumerate(product(modifiers, generators),
+        len(generators)+1):
+        h = host_subplot(len(modifiers)+1, len(generators), i)
+        t = getattr(h, gen)()
+        if "twin invisible" in mod:
+            t.axis[:].set_visible(False)
+        if "twin removed" in mod:
+            t.remove()
+        if "host invisible" in mod:
+            h.axis[:].set_visible(False)
+        h.text(0.5, 0.5, gen + ("\n" + mod if mod else ""),
+            horizontalalignment="center", verticalalignment="center")
+    plt.subplots_adjust(wspace=0.5, hspace=1)
+
+
 def test_axesgrid_colorbar_log_smoketest():
     fig = plt.figure()
     grid = AxesGrid(fig, 111,  # modified to be only subplot
@@ -124,6 +156,18 @@ def test_inset_locator():
     ax.add_artist(asb)
 
 
-if __name__ == '__main__':
-    import nose
-    nose.runmodule(argv=['-s', '--with-doctest'], exit=False)
+@image_comparison(baseline_images=['zoomed_axes',
+                                   'inverted_zoomed_axes'],
+                  extensions=['png'])
+def test_zooming_with_inverted_axes():
+    fig, ax = plt.subplots()
+    ax.plot([1, 2, 3], [1, 2, 3])
+    ax.axis([1, 3, 1, 3])
+    inset_ax = zoomed_inset_axes(ax, zoom=2.5, loc=4)
+    inset_ax.axis([1.1, 1.4, 1.1, 1.4])
+
+    fig, ax = plt.subplots()
+    ax.plot([1, 2, 3], [1, 2, 3])
+    ax.axis([3, 1, 3, 1])
+    inset_ax = zoomed_inset_axes(ax, zoom=2.5, loc=4)
+    inset_ax.axis([1.4, 1.1, 1.4, 1.1])

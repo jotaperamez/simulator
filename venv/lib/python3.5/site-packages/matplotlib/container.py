@@ -32,10 +32,10 @@ class Container(tuple):
         self._remove_method = f
 
     def remove(self):
-        for c in cbook.flatten(self,
-                               scalarp=lambda x: isinstance(x,
-                                                            martist.Artist)):
-            c.remove()
+        for c in cbook.flatten(
+                self, scalarp=lambda x: isinstance(x, martist.Artist)):
+            if c is not None:
+                c.remove()
 
         if self._remove_method:
             self._remove_method(self)
@@ -102,7 +102,7 @@ class Container(tuple):
             func(self)
 
     def get_children(self):
-        return list(cbook.flatten(self))
+        return [child for child in cbook.flatten(self) if child is not None]
 
 
 class BarContainer(Container):

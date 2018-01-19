@@ -15,10 +15,11 @@ from hashlib import md5
 import uuid
 
 from matplotlib import verbose, __version__, rcParams
-from matplotlib.backend_bases import RendererBase, GraphicsContextBase,\
-     FigureManagerBase, FigureCanvasBase
+from matplotlib.backend_bases import (
+     _Backend, FigureCanvasBase, FigureManagerBase, GraphicsContextBase,
+    RendererBase)
 from matplotlib.backends.backend_mixed import MixedModeRenderer
-from matplotlib.cbook import is_string_like, is_writable_file_like, maxdict
+from matplotlib.cbook import is_writable_file_like, maxdict
 from matplotlib.colors import rgb2hex
 from matplotlib.figure import Figure
 from matplotlib.font_manager import findfont, FontProperties, get_font
@@ -145,8 +146,7 @@ class XMLWriter(object):
         if attrib or extra:
             attrib = attrib.copy()
             attrib.update(extra)
-            attrib = list(six.iteritems(attrib))
-            attrib.sort()
+            attrib = sorted(six.iteritems(attrib))
             for k, v in attrib:
                 if not v == '':
                     k = escape_cdata(k)
@@ -248,8 +248,7 @@ def generate_transform(transform_list=[]):
 def generate_css(attrib={}):
     if attrib:
         output = io.StringIO()
-        attrib = list(six.iteritems(attrib))
-        attrib.sort()
+        attrib = sorted(six.iteritems(attrib))
         for k, v in attrib:
             k = escape_attrib(k)
             v = escape_attrib(v)
@@ -595,10 +594,8 @@ class RendererSVG(RendererBase):
         style = self._get_style_dict(gc, rgbFace)
         dictkey = (path_data, generate_css(style))
         oid = self._markers.get(dictkey)
-        for key in list(six.iterkeys(style)):
-            if not key.startswith('stroke'):
-                del style[key]
-        style = generate_css(style)
+        style = generate_css({k: v for k, v in six.iteritems(style)
+                              if k.startswith('stroke')})
 
         if oid is None:
             oid = self._make_id('m', dictkey)
@@ -880,17 +877,20 @@ class RendererSVG(RendererBase):
         """
         draw the text by converting them to paths using textpath module.
 
-        *prop*
+        Parameters
+        ----------
+        prop : `matplotlib.font_manager.FontProperties`
           font property
 
-        *s*
+        s : str
           text to be converted
 
-        *usetex*
+        usetex : bool
           If True, use matplotlib usetex mode.
 
-        *ismath*
+        ismath : bool
           If True, use mathtext parser. If "TeX", use *usetex* mode.
+
         """
         writer = self.writer
 
@@ -1038,7 +1038,7 @@ class RendererSVG(RendererBase):
                 # Don't do vertical anchor alignment. Most applications do not
                 # support 'alignment-baseline' yet. Apply the vertical layout
                 # to the anchor point manually for now.
-                angle_rad = angle * np.pi / 180.
+                angle_rad = np.deg2rad(angle)
                 dir_vert = np.array([np.sin(angle_rad), np.cos(angle_rad)])
                 v_offset = np.dot(dir_vert, [(x - ax), (y - ay)])
                 ax = ax + v_offset * dir_vert[0]
@@ -1188,7 +1188,7 @@ class FigureCanvasSVG(FigureCanvasBase):
     fixed_dpi = 72
 
     def print_svg(self, filename, *args, **kwargs):
-        if is_string_like(filename):
+        if isinstance(filename, six.string_types):
             with io.open(filename, 'w', encoding='utf-8') as svgwriter:
                 return self._print_svg(filename, svgwriter, **kwargs)
 
@@ -1223,7 +1223,7 @@ class FigureCanvasSVG(FigureCanvasBase):
         return result
 
     def print_svgz(self, filename, *args, **kwargs):
-        if is_string_like(filename):
+        if isinstance(filename, six.string_types):
             options = dict(filename=filename)
         elif is_writable_file_like(filename):
             options = dict(fileobj=filename)
@@ -1255,21 +1255,6 @@ class FigureManagerSVG(FigureManagerBase):
     pass
 
 
-def new_figure_manager(num, *args, **kwargs):
-    FigureClass = kwargs.pop('FigureClass', Figure)
-    thisFig = FigureClass(*args, **kwargs)
-    return new_figure_manager_given_figure(num, thisFig)
-
-
-def new_figure_manager_given_figure(num, figure):
-    """
-    Create a new figure manager instance for the given figure.
-    """
-    canvas  = FigureCanvasSVG(figure)
-    manager = FigureManagerSVG(canvas, num)
-    return manager
-
-
 svgProlog = """\
 <?xml version="1.0" encoding="utf-8" standalone="no"?>
 <!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN"
@@ -1278,5 +1263,7 @@ svgProlog = """\
 """
 
 
-FigureCanvas = FigureCanvasSVG
-FigureManager = FigureManagerSVG
+@_Backend.export
+class _BackendSVG(_Backend):
+    FigureCanvas = FigureCanvasSVG
+    FigureManager = FigureManagerSVG

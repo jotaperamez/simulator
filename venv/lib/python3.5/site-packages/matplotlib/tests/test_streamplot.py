@@ -1,12 +1,10 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
-import six
-
 import numpy as np
 from numpy.testing import assert_array_almost_equal
 import matplotlib.pyplot as plt
-from matplotlib.testing.decorators import image_comparison, cleanup
+from matplotlib.testing.decorators import image_comparison
 import matplotlib.transforms as mtransforms
 
 
@@ -15,6 +13,26 @@ def velocity_field():
     U = -1 - X**2 + Y
     V = 1 + X - Y**2
     return X, Y, U, V
+
+
+def swirl_velocity_field():
+    x = np.linspace(-3., 3., 100)
+    y = np.linspace(-3., 3., 100)
+    X, Y = np.meshgrid(x, y)
+    a = 0.1
+    U = np.cos(a) * (-Y) - np.sin(a) * X
+    V = np.sin(a) * (-Y) + np.cos(a) * X
+    return x, y, U, V
+
+
+@image_comparison(baseline_images=['streamplot_startpoints'])
+def test_startpoints():
+    X, Y, U, V = velocity_field()
+    start_x = np.linspace(X.min(), X.max(), 10)
+    start_y = np.linspace(Y.min(), Y.max(), 10)
+    start_points = list(zip(start_x, start_y))
+    plt.streamplot(X, Y, U, V, start_points=start_points)
+    plt.plot(start_x, start_y, 'ok')
 
 
 @image_comparison(baseline_images=['streamplot_colormap'],
@@ -26,7 +44,7 @@ def test_colormap():
     plt.colorbar()
 
 
-@image_comparison(baseline_images=['streamplot_linewidth_test_image'])
+@image_comparison(baseline_images=['streamplot_linewidth'])
 def test_linewidth():
     X, Y, U, V = velocity_field()
     speed = np.sqrt(U*U + V*V)
@@ -36,7 +54,7 @@ def test_linewidth():
                    linewidth=lw)
 
 
-@image_comparison(baseline_images=['streamplot_masks_and_nans_test_image'])
+@image_comparison(baseline_images=['streamplot_masks_and_nans'])
 def test_masks_and_nans():
     X, Y, U, V = velocity_field()
     mask = np.zeros(U.shape, dtype=bool)
@@ -47,7 +65,23 @@ def test_masks_and_nans():
         plt.streamplot(X, Y, U, V, color=U, cmap=plt.cm.Blues)
 
 
-@cleanup
+@image_comparison(baseline_images=['streamplot_maxlength'],
+                  extensions=['png'])
+def test_maxlength():
+    x, y, U, V = swirl_velocity_field()
+    plt.streamplot(x, y, U, V, maxlength=10., start_points=[[0., 1.5]],
+                   linewidth=2, density=2)
+
+
+@image_comparison(baseline_images=['streamplot_direction'],
+                  extensions=['png'])
+def test_direction():
+    x, y, U, V = swirl_velocity_field()
+    plt.streamplot(x, y, U, V, integration_direction='backward',
+                   maxlength=1.5, start_points=[[1.5, 0.]],
+                   linewidth=2, density=2)
+
+
 def test_streamplot_limits():
     ax = plt.axes()
     x = np.linspace(-5, 10, 20)
@@ -60,8 +94,3 @@ def test_streamplot_limits():
     # datalim.
     assert_array_almost_equal(ax.dataLim.bounds, (20, 30, 15, 6),
                               decimal=1)
-
-
-if __name__=='__main__':
-    import nose
-    nose.runmodule()

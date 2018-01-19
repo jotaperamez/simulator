@@ -1,12 +1,10 @@
 from matplotlib.backend_bases import FigureCanvasBase
 from matplotlib.backend_bases import RendererBase
-from matplotlib.testing.decorators import image_comparison, cleanup
+from matplotlib.testing.decorators import image_comparison
 
 import matplotlib.pyplot as plt
 import matplotlib.transforms as transforms
 import matplotlib.path as path
-
-from nose.tools import assert_equal
 
 import numpy as np
 import os
@@ -36,11 +34,9 @@ def test_uses_per_path():
                                    [], 'data')]
         uses = rb._iter_collection_uses_per_path(
             paths, all_transforms, offsets, facecolors, edgecolors)
-        seen = [0] * len(raw_paths)
-        for i in ids:
-            seen[i] += 1
-        for n in seen:
-            assert n in (uses-1, uses)
+        if raw_paths:
+            seen = np.bincount(ids, minlength=len(raw_paths))
+            assert set(seen).issubset([uses - 1, uses])
 
     check(id, paths, tforms, offsets, facecolors, edgecolors)
     check(id, paths[0:1], tforms, offsets, facecolors, edgecolors)
@@ -55,7 +51,6 @@ def test_uses_per_path():
     check(id, paths, tforms, offsets, facecolors[0:1], edgecolors)
 
 
-@cleanup
 def test_get_default_filename():
     try:
         test_dir = tempfile.mkdtemp()
@@ -63,12 +58,11 @@ def test_get_default_filename():
         fig = plt.figure()
         canvas = FigureCanvasBase(fig)
         filename = canvas.get_default_filename()
-        assert_equal(filename, 'image.png')
+        assert filename == 'image.png'
     finally:
         shutil.rmtree(test_dir)
 
 
-@cleanup
 def test_get_default_filename_already_exists():
     # From #3068: Suggest non-existing default filename
     try:
@@ -81,10 +75,6 @@ def test_get_default_filename_already_exists():
         open(os.path.join(test_dir, 'image.png'), 'w').close()
 
         filename = canvas.get_default_filename()
-        assert_equal(filename, 'image-1.png')
+        assert filename == 'image-1.png'
     finally:
         shutil.rmtree(test_dir)
-
-if __name__ == "__main__":
-    import nose
-    nose.runmodule(argv=['-s', '--with-doctest'], exit=False)

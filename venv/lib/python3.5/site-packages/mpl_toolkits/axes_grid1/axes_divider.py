@@ -25,7 +25,7 @@ from . import axes_size as Size
 
 class Divider(object):
     """
-    This is the class that is used calculates the axes position. It
+    This class calculates the axes position. It
     divides the given rectangular area into several
     sub-rectangles. You initialize the divider by setting the
     horizontal and vertical lists of sizes
@@ -148,7 +148,7 @@ class Divider(object):
             self._anchor = anchor
         else:
             raise ValueError('argument must be among %s' %
-                                ', '.join(mtransforms.BBox.coefs.keys()))
+                             ', '.join(mtransforms.BBox.coefs))
 
     def get_anchor(self):
         "return the anchor"
@@ -385,7 +385,7 @@ class SubplotDivider(Divider):
             else:
                 try:
                     s = str(int(args[0]))
-                    rows, cols, num = list(map(int, s))
+                    rows, cols, num = map(int, s)
                 except ValueError:
                     raise ValueError(
                         'Single argument to subplot must be a 3-digit integer')

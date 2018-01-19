@@ -54,6 +54,7 @@ class TriContourSet(ContourSet):
             self._maxs = [tri.x.max(), tri.y.max()]
 
         self.cppContourGenerator = C
+        return kwargs
 
     def _get_allsegs_and_allkinds(self):
         """
@@ -264,10 +265,6 @@ class TriContourSet(ContourSet):
         There is one exception: if the lowest boundary coincides with
         the minimum value of the *z* array, then that minimum value
         will be included in the lowest interval.
-
-        **Examples:**
-
-        .. plot:: mpl_examples/pylab_examples/tricontour_demo.py
         """
 
 
