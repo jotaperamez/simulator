@@ -1,34 +1,34 @@
 #!/usr/bin/env python3
 
-from core.splitter_dbs import Splitter_DBS
-from core.splitter_strpeds import Splitter_STRPEDS
-from core.splitter_sss import Splitter_SSS
-from core.peer_dbs import Peer_DBS
-from core.peer_strpeds import Peer_STRPEDS
-from core.peer_sss import Peer_SSS
-from core.peer_malicious import Peer_Malicious
-from core.peer_malicious_sss import Peer_Malicious_SSS
-from core.monitor_dbs import Monitor_DBS
-from core.monitor_strpeds import Monitor_STRPEDS
-from core.monitor_sss import Monitor_SSS
-from core.common import Common
-from core.simulator_stuff import Simulator_stuff as sim
-#from core.simulator_stuff import lg
-from multiprocessing import Process, Queue, Manager
-from glob import glob
+# from core.splitter_dbs import Splitter_DBS
+# from core.splitter_strpeds import Splitter_STRPEDS
+# from core.splitter_sss import Splitter_SSS
+# from core.peer_dbs import Peer_DBS
+# from core.peer_strpeds import Peer_STRPEDS
+# from core.peer_sss import Peer_SSS
+# from core.peer_malicious import Peer_Malicious
+# from core.peer_malicious_sss import Peer_Malicious_SSS
+# from core.monitor_dbs import Monitor_DBS
+# from core.monitor_strpeds import Monitor_STRPEDS
+# from core.monitor_sss import Monitor_SSS
+# from core.common import Common
+# from core.simulator_stuff import Simulator_stuff as sim
+# from core.simulator_stuff import lg
 
-import time
-import fire
-if __debug__:
-    import networkx as nx
-    import matplotlib.pyplot as plt
-    import matplotlib.cm as cm
 import numpy as np
 import platform
 import os
 import logging
+import time
+import fire
+from multiprocessing import Process, Queue, Manager
+from glob import glob
 
-#import logging as lg
+
+if __debug__:
+    import networkx as nx
+    import matplotlib.pyplot as plt
+    import matplotlib.cm as cm
 
 class Play():
     
@@ -116,31 +116,36 @@ class Play():
         self.net_figure.canvas.draw()
 
     def plot_team(self):
-        self.team_figure, self.team_ax = plt.subplots()
-        self.lineWIPs, = self.team_ax.plot([1,2], [10,10], color='#A9BCF5', label="# WIPs", marker='o', ls='None', markeredgecolor='#A9BCF5', animated=True)
-        self.lineMonitors, = self.team_ax.plot([1,2], [10,10], color = '#A9F5D0', label="# Monitor Peers", marker='o', ls='None', markeredgecolor='#A9F5D0', animated=True)
-        self.lineMPs, = self.team_ax.plot([1,2], [10,10], color='#DF0101', label="# Malicious Peers", marker='o', ls='None', markeredgecolor='#DF0101', animated=True)
-        self.team_figure.suptitle("Number of Peers in the Team", size=16)
+        plt.figure(4)
+        # self.lineWIPs, = self.team_ax.plot([1,2], [10,10], color='#A9BCF5', label="# WIPs", marker='o', ls='None', markeredgecolor='#A9BCF5', animated=True)
+        # self.lineMonitors, = self.team_ax.plot([1,2], [10,10], color = '#A9F5D0', label="# Monitor Peers", marker='o', ls='None', markeredgecolor='#A9F5D0', animated=True)
+        # self.lineMPs, = self.team_ax.plot([1,2], [10,10], color='#DF0101', label="# Malicious Peers", marker='o', ls='None', markeredgecolor='#DF0101', animated=True)
+        # self.team_figure.title("Number of Peers in the Team", size=16)
         plt.legend(loc=2, numpoints=1)
         total_peers = self.number_of_monitors + self.number_of_peers + self.number_of_malicious
         plt.axis([0, self.number_of_rounds, 0, total_peers])
-        self.team_figure.canvas.draw()
+        # self.team_figure.canvas.draw()
 
     def update_team(self, node, quantity, n_round):
+        plt.figure(4)
         if node == "M":
-            self.lineMonitors.set_xdata(n_round)
-            self.lineMonitors.set_ydata(quantity)
-            #self.team_ax.draw_artist(self.lineMonitors)
+            plt.plot(n_round, quantity, color = '#A9F5D0', label="# Monitor Peers", marker='o', ls='None', markeredgecolor='#A9F5D0')
+            # self.lineMonitors.set_xdata(n_round)
+            # self.lineMonitors.set_ydata(quantity)
+            # self.team_ax.draw_artist(self.lineMonitors)
         elif node == "P":
-            self.lineWIPs.set_xdata(n_round)
-            self.lineWIPs.set_ydata(quantity)
-            #self.team_ax.draw_artist(self.lineWIPs)
+            plt.plot([n_round], [quantity], color = '#A9BCF5', label="# WIPs", marker='o', ls='None', markeredgecolor='#A9BCF5')
+            # self.lineWIPs.set_xdata(n_round)
+            # self.lineWIPs.set_ydata(quantity)
+            # self.team_ax.draw_artist(self.lineWIPs)
         else:
-            self.lineMPs.set_xdata(n_round)
-            self.lineMPs.set_ydata(quantity)
-            #self.team_ax.draw_artist(self.lineMPs)
+            plt.plot(n_round, quantity, color='#DF0101', label="# Malicious Peers", marker='o', ls='None', markeredgecolor='#DF0101')
+            # self.lineMPs.set_xdata(n_round)
+            # self.lineMPs.set_ydata(quantity)
+            # self.team_ax.draw_artist(self.lineMPs)
 
-        self.team_figure.canvas.blit(self.team_ax.bbox)
+        # self.team_figure.canvas.blit(self.team_ax.bbox)
+        # self.team_figure.canvas.draw()
 
     def draw_buffer(self):
         self.buffer_figure, self.buffer_ax = plt.subplots()
@@ -172,7 +177,7 @@ class Play():
         buffer_out = [pos for pos, char in enumerate(buffer_shot) if char == "L"]
         self.lineOUT.set_xdata([self.buffer_order[node]]*len(buffer_out))
         self.lineOUT.set_ydata(buffer_out)
-        #self.buffer_ax.draw_artist(self.lineOUT)
+        self.buffer_ax.draw_artist(self.lineOUT)
 
         buffer_in = [pos for pos, char in enumerate(buffer_shot) if char == "C"]
         sender_list = senders_shot.split(":")
@@ -209,16 +214,16 @@ class Play():
         if len(self.clrs_per_round) > 0:
             self.lineCLR.set_xdata(n_round)
             self.lineCLR.set_ydata(np.mean(self.clrs_per_round))
-            #self.clr_ax.draw_artist(self.lineCLR)
+            # self.clr_ax.draw_artist(self.lineCLR)
             self.clr_figure.canvas.blit(self.clr_ax.bbox)
             self.clrs_per_round = []
 
     def draw(self):
         drawing_log_file = open(self.drawing_log, "r")
-
         # Read configuration from the first line
         line = drawing_log_file.readline()
         m = line.strip().split(";", 6)
+
         if self.gui is False:
             if m[0] == "C":
                 self.number_of_monitors = int(m[1])
@@ -238,6 +243,7 @@ class Play():
         self.plot_clr()
         time.sleep(2)
         line = drawing_log_file.readline()
+
         while line != "Bye":
             m = line.strip().split(";", 4)
             if m[0] == "O":
@@ -279,8 +285,8 @@ class Play():
 
             line = drawing_log_file.readline()
 
-        #plt.ioff()
-        #plt.show()
+        plt.ioff()
+        plt.show()
 
 if __name__ == "__main__":
     
