@@ -14,15 +14,15 @@
 # from core.common import Common
 # from core.simulator_stuff import Simulator_stuff as sim
 # from core.simulator_stuff import lg
+# import os
+# import platform
+# from multiprocessing import Process, Queue, Manager
+# from glob import glob
 
-import numpy as np
-import platform
-import os
 import logging
 import time
 import fire
-from multiprocessing import Process, Queue, Manager
-from glob import glob
+import numpy as np
 
 
 if __debug__:
