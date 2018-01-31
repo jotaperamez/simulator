@@ -1,4 +1,4 @@
-# P2PSP simulator
+# P2PSP simulator [DEV]
 
 [![Join the chat at https://gitter.im/P2PSP/Simulator](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/P2PSP/Simulator?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
@@ -9,7 +9,7 @@ A complete stand-alone simulator of the P2PSP protocol using Processes and messa
 ```
 sudo apt install python3-tk
 $ pip3 install fire
-$ pip3 install matplotlib
+$ pip3 install matplotlib==2.0.0
 $ pip3 install networkx
 ```
 ### Arch
