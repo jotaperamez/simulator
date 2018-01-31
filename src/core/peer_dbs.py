@@ -10,6 +10,7 @@ peer_dbs module
 # peers. In a nutshell, if a peer X wants to receive from peer Y
 # the chunks from origin Z, X must request it to Y, explicitally.
 
+from ast import literal_eval as make_tuple
 from threading import Thread
 from .common import Common
 from .simulator_stuff import Simulator_stuff as sim
@@ -51,8 +52,6 @@ class Peer_DBS(sim):
         self.lg.warning('Warning message enabled.')
         self.lg.info('Informative message enabled.')
         self.lg.debug('Low-level debug message enabled.')
-
-        self.random_address = ("localhost", 0)
 
         # Peer identification. Depending on the simulation degree, it
         # can be a simple string or an endpoint.
@@ -123,15 +122,14 @@ class Peer_DBS(sim):
 
     def listen_to_the_team(self):
         self.team_socket = socket(socket.AF_INET, socket.SOCK_DGRAM)
-
         #self.team_socket.set_id(self.id) # ojo, simulation dependent
         #self.team_socket.set_max_packet_size(["isi", "i", "ii"])
         # "chunk_index, chunk, origin", "[hello]/[goodbye]",  "[request <chunk>]/[prune <chunk>]"
-        self.team_socket.bind(self.random_address)
+        self.team_socket.bind()
         
 
-    def set_splitter(self, splitter):
-        self.splitter = splitter
+    def set_splitter(self, splitter_tcp_address):
+        self.splitter = splitter_tcp_address
 
     #def recv(self, fmt):
     #    msg_length = struct.calcsize(fmt)
@@ -183,10 +181,11 @@ class Peer_DBS(sim):
  
     def receive_the_list_of_peers(self):
         peers_pending_of_reception = self.number_of_peers
-        msg_length = struct.calcsize("6s")
+        msg_length = struct.calcsize("26s")
         while peers_pending_of_reception > 0:
             msg = self.splitter_socket.recv(msg_length)
-            peer = str(struct.unpack("6s", msg)[0].decode("utf-8").replace("\x00", ""))
+            peer = str(struct.unpack("26s", msg)[0].decode("utf-8").replace("\x00", ""))
+            peer = make_tuple(peer)
             self.say_hello(peer)
             peers_pending_of_reception -= 1
 
@@ -201,7 +200,7 @@ class Peer_DBS(sim):
     def connect_to_the_splitter(self):
         self.splitter_socket = socket(socket.AF_INET, socket.SOCK_STREAM)
         #self.splitter_socket.set_id(self.id) # Ojo, simulation dependant
-        self.splitter_socket.bind(self.random_address)
+        self.splitter_socket.bind()
         try:
             self.splitter_socket.connect(self.splitter)
         except ConnectionRefusedError as e:

@@ -67,30 +67,24 @@ class Simulator_socket:
     #    self.max_packet_size = size
 
     def send(self, msg):
-        self.lg.info("{} - [{}] => {}".format(self.sock.getsockname(), \
-                                          msg, \
-                                          self.sock.getpeername()))
+        self.lg.info("{} - [{}] => {}".format(self.sock.getsockname(), msg, self.sock.getpeername()))
         return self.sock.send(msg)
 
     def recv(self, msg_length):
         msg = self.sock.recv(msg_length)
         while len(msg) < msg_length:
             msg += self.sock.recv(msg_length - len(msg))
-        self.lg.info("{} <= [{}] - {}".format(self.sock.getsockname(), \
-                                              msg, \
-                                              self.sock.getpeername()))
+
+        self.lg.info("{} <= [{}] - {}".format(self.sock.getsockname(), msg, self.sock.getpeername()))
         return msg
 
     def sendall(self, msg):
-        self.lg.info("{} - [{}] => {}".format(self.sock.getsockname(), \
-                                              msg, \
-                                              self.sock.getpeername()))
+        self.lg.info("{} - [{}] => {}".format(self.sock.getsockname(), msg, self.sock.getpeername()))
         return self.sock.sendall(msg)
         
     def sendto(self, msg, address):
-        self.lg.info("{} - [{}] -> {}".format(self.sock.getsockname(), \
-                                              msg, \
-                                              address))
+        self.lg.info("{} - [{}] -> {}".format(self.sock.getsockname(), msg, address))
+
         try:
             return self.sock.sendto(msg, socket.MSG_DONTWAIT, address)
         except ConnectionRefusedError:
@@ -107,9 +101,8 @@ class Simulator_socket:
 
     def recvfrom(self, max_msg_length):
         msg, sender = self.sock.recvfrom(max_msg_length)
-        self.lg.info("{} <- [{}] - {}".format(self.sock.getsockname(), \
-                                              msg, \
-                                              sender))
+        self.lg.info("{} <- [{}] - {}".format(self.sock.getsockname(), msg, sender))
+
         return (msg, sender)
 
     def connect(self, address):
@@ -129,15 +122,30 @@ class Simulator_socket:
             try:
                 return self.sock.bind(address)
             except:
-                self.lg.error("{}: when binding address \"{} (TCP)\"".format(sys.exc_info()[0], address))
+                self.lg.error("{}: when binding address '{} (TCP)'".format(sys.exc_info()[0], address))
                 raise
         else:
             try:
                 return self.sock.bind(address)
             except:
-                self.lg.error("{}: when binding address \"{} (UDP)\"".format(sys.exc_info()[0], address))
+                self.lg.error("{}: when binding address '{} (UDP)'".format(sys.exc_info()[0], address))
                 raise
-       
+    
+    def bind(self):
+        self.lg.info("simulator_stuff.bind(FREE_ADDRESS): {}".format(self.sock))
+        if self.type == self.SOCK_STREAM:
+            try:
+                return self.sock.bind((socket.gethostname(), 0))
+            except:
+                self.lg.error("{}: when binding address 'FREE_ADDRESS (TCP)'".format(sys.exc_info()[0]))
+                raise
+        else:
+            try:
+                return self.sock.bind((socket.gethostname(), 0))
+            except:
+                self.lg.error("{}: when binding address 'FREE_ADDRESS (UDP)'".format(sys.exc_info()[0]))
+                raise
+
     def listen(self, n):
         self.lg.info("simulator_stuff.listen({}): {}".format(n, self.sock))
         return self.sock.listen(n)
@@ -149,3 +157,8 @@ class Simulator_socket:
     def settimeout(self, value):
         self.lg.info("simulator_stuff.settimeout({}): {}".format(value, self.sock))
         return self.sock.settimeout(value)
+
+    def getsockname(self):
+        return self.sock.getsockname()
+    
+    

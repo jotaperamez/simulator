@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import socket
 from core.splitter_dbs import Splitter_DBS
 from core.splitter_strpeds import Splitter_STRPEDS
 from core.splitter_sss import Splitter_SSS
@@ -83,10 +84,20 @@ class Simulator():
         elif self.set_of_rules == "cis-sss":
             splitter = Splitter_SSS()
 
+        splitter.setup_peer_connection_socket(self.splitter_tcp_socket)
+        splitter.setup_team_socket(self.splitter_udp_socket)
         #splitter.start()
         splitter.run()
         #while splitter.alive:
         #    time.sleep(1)
+        
+
+    def inicialize_splitter(self):
+        self.splitter_tcp_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.splitter_tcp_socket.bind((socket.gethostname(), 0))
+        self.splitter_udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.splitter_udp_socket.bind((socket.gethostname(), 0))
+        self.splitter_tcp_address = self.splitter_tcp_socket.getsockname()
 
     def run_a_peer(self, splitter_id, type, id, first_monitor=False):
         total_peers = self.number_of_monitors + self.number_of_peers + self.number_of_malicious
@@ -372,7 +383,7 @@ class Simulator():
             line = drawing_log_file.readline()
 
         #plt.ioff()
-        #plt.show()
+        #plt.show()team_socket
 
     def run(self):
         self.lg.info("simulator: platform.system() = {}".format(platform.system()))
@@ -409,6 +420,8 @@ class Simulator():
         sim.RECV_LIST = manager.dict()
         #sim.LOCK = Semaphore()
 
+        self.inicialize_splitter()
+
         # run splitter
         p = Process(target=self.run_a_splitter)
         p.start()
@@ -418,7 +431,7 @@ class Simulator():
         self.attended_mps = 0
 
         # run a monitor
-        p = Process(target=self.run_a_peer, args=[('localhost', 10001), "monitor", "M"+str(self.attended_monitors+0), True])
+        p = Process(target=self.run_a_peer, args=[self.splitter_tcp_address, "monitor", "M"+str(self.attended_monitors+0), True])
         p.start()
         self.processes["M"+str(self.attended_monitors+1)] = p.pid
         self.attended_monitors += 1
@@ -453,19 +466,19 @@ class Simulator():
         option = np.where(np.random.multinomial(1, probabilities))[0][0]
         if option == 0:
             if self.attended_monitors < self.number_of_monitors:
-                p = Process(target=self.run_a_peer, args=[('localhost', 10001), "monitor", "M"+str(self.attended_monitors+0)])
+                p = Process(target=self.run_a_peer, args=[self.splitter_tcp_address, "monitor", "M"+str(self.attended_monitors+0)])
                 p.start()
                 self.processes["M"+str(self.attended_monitors+1)] = p.pid
                 self.attended_monitors += 1
         elif option == 1:
             if self.attended_peers < self.number_of_peers:
-                p = Process(target=self.run_a_peer, args=[('localhost', 10001), "peer", "P"+str(self.attended_peers+1)])
+                p = Process(target=self.run_a_peer, args=[self.splitter_tcp_address, "peer", "P"+str(self.attended_peers+1)])
                 p.start()
                 self.processes["P"+str(self.attended_peers+1)] = p.pid
                 self.attended_peers += 1
         elif option == 2:
             if self.attended_mps < self.number_of_malicious:
-                p = Process(target=self.run_a_peer, args=[('localhost', 10001), "malicious", "MP"+str(self.attended_mps+1)])
+                p = Process(target=self.run_a_peer, args=[self.splitter_tcp_address, "malicious", "MP"+str(self.attended_mps+1)])
                 p.start()
                 self.processes["MP"+str(self.attended_mps+1)] = p.pid
                 self.attended_mps += 1
