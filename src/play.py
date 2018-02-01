@@ -23,6 +23,8 @@ import logging
 import time
 import fire
 import numpy as np
+# import pyqtgraph as pg
+# from pyqtgraph.Qt import QtCore, QtGui
 
 
 if __debug__:
@@ -116,7 +118,7 @@ class Play():
         self.net_figure.canvas.draw()
 
     def plot_team(self):
-        plt.figure(4)
+        plt.figure(2)
         # self.lineWIPs, = self.team_ax.plot([1,2], [10,10], color='#A9BCF5', label="# WIPs", marker='o', ls='None', markeredgecolor='#A9BCF5', animated=True)
         # self.lineMonitors, = self.team_ax.plot([1,2], [10,10], color = '#A9F5D0', label="# Monitor Peers", marker='o', ls='None', markeredgecolor='#A9F5D0', animated=True)
         # self.lineMPs, = self.team_ax.plot([1,2], [10,10], color='#DF0101', label="# Malicious Peers", marker='o', ls='None', markeredgecolor='#DF0101', animated=True)
@@ -127,7 +129,7 @@ class Play():
         # self.team_figure.canvas.draw()
 
     def update_team(self, node, quantity, n_round):
-        plt.figure(4)
+        plt.figure(2)
         if node == "M":
             plt.plot(n_round, quantity, color = '#A9F5D0', label="# Monitor Peers", marker='o', ls='None', markeredgecolor='#A9F5D0')
             # self.lineMonitors.set_xdata(n_round)
